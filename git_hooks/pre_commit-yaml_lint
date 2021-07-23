@@ -1,0 +1,42 @@
+#!/usr/bin/env python3
+
+import git
+import os
+import sys
+import yaml
+
+CHANGE_DELETE = 'D'
+
+def run():
+    repo = git.Repo(os.getcwd())
+
+    issues = set()
+
+    # Gets diff against working copy
+    full_diff = repo.index.diff(None, cached=True)
+    print(full_diff.change_type)
+    for diff in full_diff:
+        # Get likely yaml files
+
+        if diff.change_type != CHANGE_DELETE and (
+                diff.b_path.endswith('.yaml') or diff.b_path.endswith('.yml')):
+            with open(diff.b_path, 'r') as file_handle:
+                try:
+                    yaml.safe_load(file_handle)
+                except yaml.scanner.ScannerError as exc:
+                    exc.problem_mark
+                    issues.add(' '.join([exc.problem, str(exc.problem_mark)]))
+
+    if issues:
+        msg = '\n'.join([
+            "Commit blocked by YAML parse errors!",
+            "", "Errors:", ""])
+
+        for issue in issues:
+            msg += '\t' + issue
+
+        sys.exit(msg)
+
+
+if __name__ == '__main__':
+    run()
