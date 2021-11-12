@@ -23,15 +23,18 @@ TEST_RE_STR = r'^\s*varnishtest\s*"(?P<test_name>.*?)"\n(?P<test_content>.*)$'
 #CLIENT_RE_STR = r'\nclient\s(?P<client_name>\S*?)\s*{(?P<body>.*?)}\s*(?:-run)?'
 CLIENT_RE_STR = r'^\s*client\s(?P<client_name>\S*?)\s*{\s*(?:#\s*(?P<comment>.*?)$)?(?P<body>.*?)}\s*(?:-run)?'
 # GMX
-CASE_RE_STR = r'txreq\s+-req\s+"(?P<method>[A-Z]+)"\s+-url\s+"(?P<url>[/a-z-A-Z_0-9\.]+)"(?P<headers>(?:\s*\\\n\s*-hdr\s*".*?")*)\s*rxresp\s*\n(?P<response>(?:^\s*expect.*?\n)*)'
+CASE_RE_STR = r'txreq\s+-req\s+"(?P<method>[A-Z]+)"\s+-url\s+"(?P<url>[/a-z-A-Z_0-9\.]+)"(?P<headers>(?:\s*\\\n\s*-hdr\s*".*?")*)\s*rxresp\s*\n(?P<response>(?:^\s*expect.*?$)*)\s*\Z'
 
 # GM
 HEADER_RE_STR = r'-hdr\s*"(?P<key>.*?):\s*(?P<val>.*?)"(:?\s*\\)?$'
+
+EXPECTATION_RE_STR = r'^\s*expect resp\.(?P<param>[a-z]+)\s*(?P<operator>[=!><]{2})\s*(?P<value>.*?)\s*$'
 
 TEST_RE = re.compile(TEST_RE_STR, re.M | re.X | re.S)
 CLIENT_RE = re.compile(CLIENT_RE_STR, re.M | re.S)
 CASE_RE = re.compile(CASE_RE_STR, re.M | re.S)
 HEADER_RE = re.compile(HEADER_RE_STR, re.M)
+EXPECTATION_RE = re.compile(EXPECTATION_RE_STR, re.M)
 
 # for yaml keys
 STAGES = 'stages'
@@ -75,14 +78,45 @@ def _convert_header(key, val):
 
     return key, val
 
+def _string_stripped(inval):
+    outval = str(inval)
+    if len(outval) > 1 and outval[-1] == outval[0] and outval[0] in ['"', "'"]:
+        outval = outval[1:-1]
+    return outval
 
 def _convert_response(response_vtc):
     response = {}
-
-    for expectation_match in re.finditer(r'^\s*expect resp\.(?P<param>[a-z]+)\s*(?P<operator>[=!><]{2})\s*(?P<value>.*?)\s*$', response_vtc):
+    # TODO const
+    param_mutations = {
+        'status': ('status_code', int),
+        'body': (('json', 'body'), _string_stripped)
+    }
+    for expectation_match in re.finditer(EXPECTATION_RE, response_vtc):
         expectation = ResponseExpectation(**expectation_match.groupdict())
-        assert expectation.param not in response
-        response[expectation.param] = expectation.value
+        if expectation.param in param_mutations:
+            param_name, val_type = param_mutations[expectation.param]
+            if param_name is not None:
+                param = param_name
+            else:
+                param = expectation.param
+
+            if val_type is not None:
+                value = val_type(expectation.value)
+            else:
+                value = expectation.value
+        else:
+            param = expectation.param
+            value = expectation.value
+
+        assert param not in response
+        if not isinstance(param, str):
+            rdict = response
+            keys, last_key = param[:-1], param[-1]
+            for key in keys:
+                rdict = rdict.setdefault(key, {})
+            rdict[last_key] = value
+        else:
+            response[param] = value
 
         if not expectation.operator == '==':
             raise ValueError(f'operator {expectation.operator} is not handled (yet?)')
@@ -97,7 +131,7 @@ def _convert_request(case_match):
     """
 
     req = Request(
-        url=case_match.groupdict()['url'],
+        url=f'{{protocol:s}}://{{deployed_domain:s}}:{{port:s}}{case_match.groupdict()["url"]}',
         method=case_match.groupdict()['method'],
         headers=dict(_convert_header(**match.groupdict()) for match in HEADER_RE.finditer(case_match.groupdict()['headers'])),
     )
@@ -200,13 +234,14 @@ def main():
             sources = source.rglob('*' + VTC_EXT)
         else:
             sources = source.glob('*' + VTC_EXT)
-        logger.debug(f"sources is:\n{list(sources)}")
+
         for source in sources:
-            dest_file = dest.joinpath(source.stem)
+            dest_file = dest.joinpath(source.stem).with_suffix(TAVERN_EXT)
+            logger.debug(f'converting file {source} to {dest_file}')
             convert_vtc_to_tavern(source, dest_file)
 
     else:
-        logger.debug(f'attempting to convert single file {source} to {dest}')
+        logger.debug(f'converting single file {source} to {dest}')
         assert source.is_file()
         if dest.is_dir():
             dest = dest.joinpath(source.stem).with_suffix(TAVERN_EXT)
