@@ -1,0 +1,18 @@
+version: 3
+
+tasks:
+  install_looks:
+    deps:
+      - task: install_look
+        vars:
+          look_name: bearden-dark
+      - task: install_look
+        vars:
+          look_name: bearden-light
+
+  install_look:
+    vars:
+      look_name: "{{ .look_name }}"
+    cmds:
+      - "test -d /etc/regolith/styles/{{ .look_name }} || mkdir /etc/regolith/styles/{{ .look_name }}"
+      - "find {{ .look_name }} -type f -exec install -Dm 755 {} /etc/regolith/styles/{{ .look_name }}/ \\;"
