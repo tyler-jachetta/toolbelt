@@ -1,0 +1,29 @@
+[tool.poetry]
+name = "theme_switcher"
+version = "0.1.0"
+description = "Utility for switching themes, and toggling options, across multiple apps and the desktop environment"
+authors = ["Tyler Jachetta <me@tylerjachetta.net>"]
+license = "MIT"
+
+[tool.poetry.dependencies]
+python = "^3.10"
+fire = "^0.4.0"
+# Don't upgrade to 6.0 (yet) as docker-compose requires < 6.0, and I have that
+# installed locally
+PyYAML = ">=5.4.1"
+inquirer = "^2.9"
+pycairo = "^1.21.0"
+PyGObject = "^3.42.0"
+
+[tool.poetry.dev-dependencies]
+pytest = "^7.1.1"
+
+[tool.poetry.scripts]
+toggle_theme = 'theme_switcher.cli:toggle'
+add_theme = 'theme_switcher.cli:add'
+theme_switchinator = 'theme_switcher.cli:entrypoint'
+
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
