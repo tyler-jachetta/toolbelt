@@ -14,7 +14,6 @@ def run():
 
     # Gets diff against working copy
     full_diff = repo.index.diff(None, cached=True)
-    print(full_diff.change_type)
     for diff in full_diff:
         # Get likely yaml files
 
