@@ -1,0 +1,5 @@
+#!/usr/bin/env zsh
+
+FIREFOX_PERSONAL_GITHUB_PROFILE="personal github"
+firefox -P ${FIREFOX_PERSONAL_GITHUB_PROFILE} https://www.github.com
+
