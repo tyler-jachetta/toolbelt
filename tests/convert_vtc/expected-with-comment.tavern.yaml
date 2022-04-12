@@ -1,0 +1,20 @@
+test_name: "Get webfolder assets, basic auth"
+
+stages:
+  # basic auth test
+  # httpbin.org provides a nice way to test basic auth 
+  - name: "test auth"
+    request:
+      url: "{protocol:s}://{testing_domain:s}.{target_tld:s}/basic-auth/testusername/testpassword"
+      method: GET
+      headers:
+        "Host": "httpbin.imgix.com"
+        "X-IXSource-SourceID": "{account_id:s}"
+        "X-IXSource-Epoch": "0"
+        "X-Imgix-Purge-ID": "0"
+        "X-IXSource-Cache-Behavior": "default"
+        "X-IXSource-Cache-Value": "60"
+        "X-IXSource-Type": "webfolder"
+        "X-IXSource-WF-Prefix-JSON": "{{\"path\": \"\",\"host\": \"httpbin.imgix.com\",\"scheme\": \"{protocol:s}\",\"port\": \"\",\"auth\": \"testusername:testpassword\"}}"
+    response:
+      status_code: 200

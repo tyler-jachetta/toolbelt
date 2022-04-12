@@ -1,0 +1,23 @@
+varnishtest "get webfolder assets, basic auth"
+
+# include custom vcl
+varnish v1 -vcl {
+    include "/etc/varnish/default.vcl";
+} -start
+
+client c1 {
+    # basic auth test
+    # httpbin.org provides a nice way to test basic auth
+    txreq -req GET -url /basic-auth/testusername/testpassword \
+        -hdr "Host: httpbin.imgix.com" \
+        -hdr "X-IXSource-SourceID: 000000000000000000000000" \
+        -hdr "X-IXSource-Epoch: 0" \
+        -hdr "X-IXSource-AccountID: 000000000000000000000000" \
+        -hdr "X-Imgix-Purge-ID: 0" \
+        -hdr "X-IXSource-Cache-Behavior: default" \
+        -hdr "X-IXSource-Cache-Value: 60" \
+        -hdr "X-IXSource-Type: webfolder" \
+        -hdr "X-IXSource-WF-Prefix-JSON: {\"path\": \"\", \"host\": \"httpbin.imgix.com\", \"scheme\": \"http\", \"port\": \"\", \"auth\": \"testusername:testpassword\"}"
+    rxresp
+    expect resp.status == 200
+} -run
